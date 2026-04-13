@@ -1,9 +1,9 @@
 import mongoose from "mongoose"
 import userRepo from "../repository/user.repository"
-import { Days, EmploymentType } from "../schemas/guard.shcema"
+import { Days, EmploymentType } from "../schemas/guard.schema"
 import { UserRole } from "../schemas/user.schema"
 import { AppError } from "../utils/appError"
-import { passwrodHashUtils } from "../utils/bcrypt.utils"
+import { passwordHashUtils } from "../utils/bcrypt.utils"
 import { jwtUtils } from "../utils/jwt.utils"
 
 const authService = {
@@ -61,7 +61,7 @@ const authService = {
 
         if (result !== null) {
             console.log()
-            const isMatch = await passwrodHashUtils.compareValue(arg.password, (result as any).passwordHash)
+            const isMatch = await passwordHashUtils.compareValue(arg.password, (result as any).passwordHash)
 
             if (isMatch) {
                 const token = jwtUtils.generateToken({

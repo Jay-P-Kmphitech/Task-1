@@ -46,4 +46,4 @@ class JwtUtils {
     }
 }
 
-export const jwtUtils = new JwtUtils(env.jwtSecrate)
+export const jwtUtils = new JwtUtils(env.jwtSecrete)

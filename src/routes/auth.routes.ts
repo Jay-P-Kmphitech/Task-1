@@ -3,7 +3,7 @@ import fs from "fs"
 import multer from "multer"
 import { v4 } from "uuid"
 import controller from "../controllers/auth.controller"
-import { validate } from "../middlewares/validation.middlware"
+import { validate } from "../middlewares/validation.middleware"
 import { AppError } from "../utils/appError"
 import authValidator from "../validations/auth.validations"
 

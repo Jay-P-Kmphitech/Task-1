@@ -37,6 +37,6 @@ function _getPasswordHashSecrate(): string {
 export default {
     mongoose_url: _getMongoDbUrl(),
     port: _getPort(),
-    jwtSecrate: _getJwtSecrate(),
+    jwtSecrete: _getJwtSecrate(),
     passwordHasSecrate: _getPasswordHashSecrate(),
 }

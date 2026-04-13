@@ -1,11 +1,11 @@
 import { Router } from "express";
 import controller from "../controllers/shifts.controller";
-import { authentication } from "../middlewares/auth.middleware";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const ShiftsRouter = Router();
 
 // Apply auth middleware to all routes
-ShiftsRouter.use(authentication);
+ShiftsRouter.use(authenticate);
 
 // Create Shift
 ShiftsRouter.post("/", controller.createShift);

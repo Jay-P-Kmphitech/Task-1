@@ -4,14 +4,14 @@ import companyModel from "../models/company.model"
 import guardModel from "../models/guard.model"
 import userModel from "../models/user.model"
 
-import { Days, EmploymentType } from "../schemas/guard.shcema"
+import { Days, EmploymentType } from "../schemas/guard.schema"
 import { UserRole } from "../schemas/user.schema"
-import { passwrodHashUtils } from "../utils/bcrypt.utils"
+import { passwordHashUtils } from "../utils/bcrypt.utils"
 
 const userRepo = {
     async createUser(role: UserRole, email: string, password: string, name: string, phone: string, session: mongoose.mongo.ClientSession) {
         // create password hash with generateHash method of bcrypt
-        const passwordHash = await passwrodHashUtils.generateHash(password)
+        const passwordHash = await passwordHashUtils.generateHash(password)
 
         const result = new userModel({
             email,

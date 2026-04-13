@@ -29,7 +29,9 @@ const controller = {
     }),
 
     getShiftsByCompany: catchAsync(async (req: Request, res: Response) => {
-        const companyId = req.params.companyId;
+        const companyId = Array.isArray(req.params.companyId)
+            ? req.params.companyId[0]
+            : req.params.companyId;
 
         const data = await shiftsService.getShiftsByCompany({ companyId });
 

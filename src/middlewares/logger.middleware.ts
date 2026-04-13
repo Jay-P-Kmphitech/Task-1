@@ -41,10 +41,10 @@ const _requestLogger = (req: Request) => {
 }
 
 
-const loggerMiddlware = (req: Request, res: Response, next: NextFunction) => {
+const loggerMiddleware = (req: Request, res: Response, next: NextFunction) => {
     _requestLogger(req)
     next()
 }
 
 
-export default loggerMiddlware
+export default loggerMiddleware

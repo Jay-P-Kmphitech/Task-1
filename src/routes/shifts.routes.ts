@@ -1,20 +1,25 @@
 import { Router } from "express";
 import controller from "../controllers/shifts.controller";
-import { authenticate } from "../middlewares/auth.middleware";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware";
+import { UserRole } from "../schemas/user.schema";
 
 const ShiftsRouter = Router();
 
-// Apply auth middleware to all routes
-ShiftsRouter.use(authenticate);
+ShiftsRouter.use(authenticate());
 
-// Create Shift
-ShiftsRouter.post("/", controller.createShift);
-
-// Get all shifts
-ShiftsRouter.get("/", controller.getAllShifts);
+ShiftsRouter.route("/")
+  .post(authorizeRoles([UserRole.company]), controller.createShift)
+  .get(
+    authorizeRoles([UserRole.company, UserRole.guard]),
+    controller.getAllShifts,
+  );
 
 // Get shifts by date range
-ShiftsRouter.get("/date-range", controller.getShiftsByDateRange);
+ShiftsRouter.get(
+  "/date-range",
+  authorizeRoles([UserRole.company, UserRole.guard]),
+  controller.getShiftsByDateRange,
+);
 
 // Get shifts by location
 ShiftsRouter.get("/location/:location", controller.getShiftsByLocation);
@@ -23,12 +28,12 @@ ShiftsRouter.get("/location/:location", controller.getShiftsByLocation);
 ShiftsRouter.get("/company/:companyId", controller.getShiftsByCompany);
 
 // Get shift by ID
-ShiftsRouter.get("/:shiftId", controller.getShiftById);
-
-// Update shift
-ShiftsRouter.patch("/:shiftId", controller.updateShift);
-
-// Delete shift
-ShiftsRouter.delete("/:shiftId", controller.deleteShift);
+ShiftsRouter.route("/:shiftId")
+  .get(
+    authorizeRoles([UserRole.company, UserRole.guard]),
+    controller.getShiftById,
+  )
+  .patch(authorizeRoles([UserRole.company]), controller.updateShift)
+  .delete(authorizeRoles([UserRole.company]), controller.deleteShift);
 
 export default ShiftsRouter;

@@ -1,76 +1,131 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import GuardShift from "../models/guard-shift.model";
+import { GuardShiftStatus } from "../schemas/guard-shift.schema";
+import { StatementResultingChanges } from "node:sqlite";
 
 const guardShiftRepo = {
-    async assignGuardToShift(guardId: string, shiftId: string) {
-        const guardShift = await GuardShift.create({
-            guardId: new mongoose.Types.ObjectId(guardId),
-            shiftId: new mongoose.Types.ObjectId(shiftId),
-            status: "assigned",
-        });
+  async assignGuardToShift(guardId: string, shiftId: string) {
+    const guardShift = await GuardShift.create({
+      guardId: new mongoose.Types.ObjectId(guardId),
+      shiftId: new mongoose.Types.ObjectId(shiftId),
+      status: GuardShiftStatus.Assigned,
+      assignedAt: new Date(),
+    });
 
-        return guardShift;
-    },
+    return guardShift;
+  },
 
-    async removeGuardFromShift(guardId: string, shiftId: string) {
-        const result = await GuardShift.deleteOne({
-            guardId: new mongoose.Types.ObjectId(guardId),
-            shiftId: new mongoose.Types.ObjectId(shiftId),
-        });
+  async getAllShifts(guardId: string) {
+    return GuardShift.find({
+      guardId: new mongoose.Types.ObjectId(guardId),
+    })
+      .populate("shiftId")
+      .sort({ assignedAt: -1 });
+  },
 
-        return result;
-    },
+  async removeGuardFromShift(guardId: string, shiftId: string) {
+    const result = await GuardShift.deleteOne({
+      guardId: new mongoose.Types.ObjectId(guardId),
+      shiftId: new mongoose.Types.ObjectId(shiftId),
+    });
 
-    async getGuardShifts(guardId: string) {
-        const guardShifts = await GuardShift.find({
-            guardId: new mongoose.Types.ObjectId(guardId),
-        })
-            .populate("shiftId")
-            .sort({ assignedAt: -1 });
+    return result;
+  },
 
-        return guardShifts;
-    },
+  async getGuardShifts(guardId: string) {
+    const guardShifts = await GuardShift.find({
+      guardId: new mongoose.Types.ObjectId(guardId),
+    })
+      .populate("shiftId")
+      .sort({ assignedAt: -1 });
 
-    async getShiftGuards(shiftId: string) {
-        const shiftGuards = await GuardShift.find({
-            shiftId: new mongoose.Types.ObjectId(shiftId),
-        })
-            .populate("guardId")
-            .sort({ assignedAt: -1 });
+    return guardShifts;
+  },
 
-        return shiftGuards;
-    },
+  async getShiftGuards(shiftId: string) {
+    const shiftGuards = await GuardShift.find({
+      shiftId: new mongoose.Types.ObjectId(shiftId),
+    })
+      .populate("guardId")
+      .sort({ assignedAt: -1 });
 
-    async updateAssignmentStatus(guardId: string, shiftId: string, status: string) {
-        const guardShift = await GuardShift.findOneAndUpdate(
-            {
-                guardId: new mongoose.Types.ObjectId(guardId),
-                shiftId: new mongoose.Types.ObjectId(shiftId),
-            },
-            { status },
-            { new: true }
-        );
+    return shiftGuards;
+  },
 
-        return guardShift;
-    },
+  async updateAssignmentStatus(
+    guardId: string,
+    shiftId: string,
+    status: string,
+  ) {
+    const guardShift = await GuardShift.findOneAndUpdate(
+      {
+        guardId: new mongoose.Types.ObjectId(guardId),
+        shiftId: new mongoose.Types.ObjectId(shiftId),
+      },
+      { status },
+      { new: true },
+    );
 
-    async isGuardAssignedToShift(guardId: string, shiftId: string) {
-        const assignment = await GuardShift.findOne({
-            guardId: new mongoose.Types.ObjectId(guardId),
-            shiftId: new mongoose.Types.ObjectId(shiftId),
-        });
+    return guardShift;
+  },
 
-        return !!assignment;
-    },
+  async isGuardAssignedToShift(guardId: string, shiftId: string) {
+    const assignment = await GuardShift.findOne({
+      guardId: new mongoose.Types.ObjectId(guardId),
+      shiftId: new mongoose.Types.ObjectId(shiftId),
+    });
 
-    async getAllAssignments(filters?: Record<string, any>) {
-        const assignments = await GuardShift.find(filters || {})
-            .populate("guardId")
-            .populate("shiftId")
-            .sort({ assignedAt: -1 });
+    return !!assignment;
+  },
 
-        return assignments;
-    },
+  async getAllAssignments(filters?: Record<string, any>) {
+    const assignments = await GuardShift.find(filters || {})
+      .populate("guardId")
+      .populate("shiftId")
+      .sort({ assignedAt: -1 });
+
+    return assignments;
+  },
+
+  async getShiftsByDateRangeByGuardId(
+    guardId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const shifts = await GuardShift.aggregate([
+      { $match: { guardId: new Types.ObjectId(guardId) } },
+      {
+        $lookup: {
+          from: "shifts",
+          localField: "shiftId",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: "$shift" },
+      {
+        $match: {
+          $and: [
+            { "shift.startDateTime": { $lte: endDate } },
+            { "shift.endDateTime": { $gte: startDate } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          shiftId: 1,
+          guardId: 1,
+          status: 1,
+          assignedAt: 1,
+          "shift.startDateTime": 1,
+          "shift.endDateTime": 1,
+        },
+      },
+    ]);
+
+    return shifts;
+  },
 };
 
 export default guardShiftRepo;

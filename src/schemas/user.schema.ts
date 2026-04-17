@@ -2,13 +2,15 @@ import { Document, Schema } from "mongoose"
 
 export interface User extends Document {
     email: String,
-    password?: String | null,
     passwordHash?: String | null,
     role: UserRole
     phone: String,
+    name: String,
+    profile?: String,
 }
 
 export enum UserRole {
+    admin = "admin",
     company = "company",
     client = "client",
     guard = "guard",
@@ -21,9 +23,6 @@ const userSchema = new Schema<User>({
         unique: true,
         lowercase: true,
     },
-    password: {
-        type: String,
-    },
     passwordHash: {
         type: String,
     },
@@ -35,6 +34,13 @@ const userSchema = new Schema<User>({
     phone: {
         type: String,
         required: true,
+    },
+    name: {
+        type: String,
+        required: [true, "Name is required"],
+    },
+    profile: {
+        type: String,
     }
 })
 

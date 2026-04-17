@@ -1,18 +1,35 @@
 import { Router } from "express";
 import controller from "../controllers/guard-shift.controller";
-import { authenticate } from "../middlewares/auth.middleware";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware";
+import { UserRole } from "../schemas/user.schema";
 
 const guardShiftRouter = Router();
 
-guardShiftRouter.use(authenticate);
+guardShiftRouter.use(authenticate());
 
-guardShiftRouter.post("/assign", controller.assignGuardToShift);
+guardShiftRouter.post(
+  "/assign",
+  authorizeRoles([UserRole.company]),
+  controller.assignGuardToShift,
+);
 
-guardShiftRouter.delete("/remove", controller.removeGuardFromShift);
+guardShiftRouter.delete(
+  "/remove",
+  authorizeRoles([UserRole.company]),
+  controller.removeGuardFromShift,
+);
 
-guardShiftRouter.get("/guard/:guardId", controller.getGuardShifts);
+guardShiftRouter.get(
+  "/guard/:guardId",
+  authorizeRoles([UserRole.company]),
+  controller.getGuardShifts,
+);
 
-guardShiftRouter.get("/shift/:shiftId", controller.getShiftGuards);
+guardShiftRouter.get(
+  "/shift/:shiftId",
+  authorizeRoles([UserRole.company, UserRole.guard]),
+  controller.getShiftGuards,
+);
 
 guardShiftRouter.patch("/status", controller.updateAssignmentStatus);
 

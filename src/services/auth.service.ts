@@ -1,80 +1,67 @@
-import mongoose from "mongoose"
-import userRepo from "../repository/user.repository"
-import { Days, EmploymentType } from "../schemas/guard.schema"
-import { UserRole } from "../schemas/user.schema"
-import { AppError } from "../utils/appError"
-import { passwordHashUtils } from "../utils/bcrypt.utils"
-import { jwtUtils } from "../utils/jwt.utils"
+import mongoose from "mongoose";
+import { RegisterRequest } from "../controllers/auth.controller";
+import userRepo from "../repository/user.repository";
+import { AppError } from "../utils/appError";
+import { passwordHashUtils } from "../utils/bcrypt.utils";
+import { jwtUtils } from "../utils/jwt.utils";
 
 const authService = {
-    async register(arg: {
-        email: string,
-        password: string,
-        name: string,
-        profile?: string,
-        phone: string,
-        role: UserRole,
-        media?: Express.Multer.File[],
-        availability?: Array<Days>,
-        maxHoursPerWeek?: number,
-        employmentType?: EmploymentType
-    }) {
-        const session = await mongoose.startSession()
-        session.startTransaction()
+  async register(arg: RegisterRequest) {
+    const session = await mongoose.startSession();
 
-        try {
-            let response: Object | null
-            var result = await userRepo.createUser(arg.role, arg.email, arg.password, arg.name, arg.phone, session)
+    session.startTransaction();
 
-            switch (arg.role) {
-                case UserRole.client:
-                    response = await result.createClient(arg.profile!)
-                    break
-                case UserRole.guard:
-                    response = await result.createGuard(arg.availability!, arg.employmentType!, arg.maxHoursPerWeek!, arg.profile!)
-                    break
-                case UserRole.company:
-                    response = await result.createCompany(arg.media!)
-                    break
-                default:
-                    response = null
-                    break
-            }
+    try {
+      var result = await userRepo.createUser(arg, session);
 
-            await session.commitTransaction()
-            console.log(response)
-            return response
-        } catch (error) {
-            await session.abortTransaction()
-            throw error
-        } finally {
-            await session.endSession()
-        }
-    },
+      await session.commitTransaction();
 
-    async login(arg: { email: string; password: string }): Promise<{ token: string; user: Object }> {
+      const { password, passwordHash, ...payload } = result as any;
 
-        var result = await userRepo.findByEmail(arg.email)
+      const token = await jwtUtils.generateToken({
+        id: payload._id,
+        email: payload.email,
+        role: payload.role,
+      });
 
-        console.log("result", result)
+      return { token, ...payload };
+    } catch (error) {
+      await session.abortTransaction();
 
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  },
 
-        if (result !== null) {
-            console.log()
-            const isMatch = await passwordHashUtils.compareValue(arg.password, (result as any).passwordHash)
+  async login(arg: { email: string; password: string }): Promise<Object> {
+    var result = await userRepo.findByEmail(arg.email);
 
-            if (isMatch) {
-                const token = jwtUtils.generateToken({
-                    id: (result as any)._id.toString(),
-                    email: (result as any).email,
-                    role: (result as any).role,
-                })
-                return { token, user: result }
-            }
+    console.log("result", result);
+
+    if (result !== null) {
+      const isMatch = await passwordHashUtils.compareValue(
+        arg.password,
+        (result as any).passwordHash,
+      );
+
+      if (isMatch) {
+        const token = jwtUtils.generateToken({
+          id: (result as any)._id.toString(),
+          email: (result as any).email,
+          role: (result as any).role,
+        });
+
+        if ("passwordHash" in result) {
+          delete result.passwordHash;
         }
 
-        throw new AppError("Invalid email or password", 401)
-    },
-}
+        return { token, ...result };
+      }
+    }
 
-export default authService
+    throw new AppError("Invalid email or password", 401);
+  },
+};
+
+export default authService;

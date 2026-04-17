@@ -1,4 +1,5 @@
 import Joi from "joi"
+import { Days } from "../schemas/guard.schema"
 
 const _fileSchema = (fieldName?: string) => Joi.object({
     fieldname: fieldName ? Joi.string().valid(fieldName) : Joi.optional(),
@@ -93,16 +94,30 @@ const authValidator = {
                     "any.required": "Role is required.",
                     "string.empty": "Role must not be empty."
                 }),
+            /**
+             * availability: An array of string days from ['mon','tue','wed','thu','fri','sat','sun'].
+             * 
+             * Example (in Postman, for key "availability[]"):
+             * 
+             *   Key:   availability[]      Value: mon
+             *   Key:   availability[]      Value: tue
+             *   Key:   availability[]      Value: fri
+             *
+             * Or as raw JSON (body/raw, JSON):
+             * 
+             *   "availability": ["mon", "tue", "fri"]
+             */
             availability: Joi.array()
-                .items(Joi.string().valid('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'))
+                .items(Joi.string().valid(...Object.values(Days)))
                 .min(1)
                 .messages({
                     "array.base": "Availability must be an array of days.",
                     "array.includes": "Availability must only contain valid days.",
                     "array.min": "At least one availability day must be specified for guards.",
                     "string.base": "Each availability day must be a string.",
-                    "any.only": "Each availability day must be one of 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', or 'Sunday'."
+                    "any.only": "Each availability day must be one of 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', or 'sun'."
                 }),
+
             employmentType: Joi.string()
                 .valid('full-time', 'part-time')
                 .messages({

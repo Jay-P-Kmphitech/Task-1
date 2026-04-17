@@ -1,147 +1,138 @@
-import mongoose from "mongoose"
-import clientModel from "../models/client.model"
-import companyModel from "../models/company.model"
-import guardModel from "../models/guard.model"
-import userModel from "../models/user.model"
+import mongoose, { Types } from "mongoose";
+import companyModel from "../models/company.model";
+import guardModel from "../models/guard.model";
+import userModel from "../models/user.model";
 
-import { Days, EmploymentType } from "../schemas/guard.schema"
-import { UserRole } from "../schemas/user.schema"
-import { passwordHashUtils } from "../utils/bcrypt.utils"
+import { RegisterRequest as RegisterReqDto } from "../controllers/auth.controller";
+import { Days, EmploymentType } from "../schemas/guard.schema";
+import { User, UserRole } from "../schemas/user.schema";
+import { passwordHashUtils } from "../utils/bcrypt.utils";
 
-const userRepo = {
-    async createUser(role: UserRole, email: string, password: string, name: string, phone: string, session: mongoose.mongo.ClientSession) {
-        // create password hash with generateHash method of bcrypt
-        const passwordHash = await passwordHashUtils.generateHash(password)
-
-        const result = new userModel({
-            email,
-            password,
-            passwordHash,
-            phone,
-            role,
-        })
-
-        await result.save({ session })
-
-        return {
-            async createClient(profile: string) {
-                const clientResult = new clientModel({
-                    _id: result._id,
-                    name: name,
-                    profile: profile,
-                })
-
-                await clientResult.save({ session })
-
-                return {
-                    ...result.toObject(),
-                    ...clientResult.toObject(),
-                }
-            },
-
-            async createGuard(availability: Array<Days>, employmentType: EmploymentType, maxHoursPerWeek: number, profile: string,) {
-                const guradResult = new guardModel({
-                    _id: result._id,
-                    name: name,
-                    profile: profile,
-                    availability: availability,
-                    employmentType: employmentType,
-                    maxHoursPerWeek: maxHoursPerWeek,
-                })
-
-                await guradResult.save({ session })
-
-                return {
-                    ...result.toObject(),
-                    ...guradResult.toObject(),
-                }
-            },
-
-            async createCompany(media: Express.Multer.File[]) {
-                const companyResult = new companyModel({
-                    _id: result._id,
-                    name: name,
-                    media: media.map((file) => file.path),
-                })
-
-                await companyResult.save({ session })
-
-                return {
-                    ...result.toObject(),
-                    ...companyResult.toObject(),
-                }
-            }
-        }
-    },
-
-
-
-    async findByEmail(email: string): Promise<Object | null> {
-        const result = await userModel.aggregate([
-            {
-                $match: {
-                    email: email,
-                }
-            },
-            {
-                $lookup: {
-                    from: "company-details",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "companyProfile",
-                }
-            },
-            {
-                $lookup: {
-                    from: "guard-details",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "guardProfile",
-                }
-            },
-            {
-                $lookup: {
-                    from: "client-details",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "clientProfile",
-                }
-            },
-            {
-                $addFields: {
-                    profile: {
-                        $switch: {
-                            branches: [
-                                {
-                                    case: { $eq: ["$role", "company"] },
-                                    then: { $arrayElemAt: ["$companyProfile", 0] },
-                                },
-                                {
-                                    case: { $eq: ["$role", "guard"] },
-                                    then: { $arrayElemAt: ["$guardProfile", 0] },
-                                },
-                                {
-                                    case: { $eq: ["$role", "client"] },
-                                    then: { $arrayElemAt: ["$clientProfile", 0] },
-                                },
-                            ],
-                            default: null,
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    companyProfile: 0,
-                    guardProfile: 0,
-                    clientProfile: 0,
-                }
-            },
-            { $limit: 1 }
-        ])
-
-        return result[0] ?? null
-    }
+interface RegisterResponse {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  profile?: string;
+  media?: [string];
+  availability?: Array<Days>;
+  maxHoursPerWeek?: number;
+  employmentType?: EmploymentType;
 }
 
-export default userRepo
+const userRepo = {
+  async createUser(
+    arg: RegisterReqDto,
+    session: mongoose.mongo.ClientSession,
+  ): Promise<Record<string, unknown> | null> {
+    // create password hash with generateHash method of bcrypt
+    const passwordHash = await passwordHashUtils.generateHash(arg.password);
+
+    // create the user instance
+    let user: User | null = null;
+    try {
+      user = new userModel({
+        email: arg.email,
+        passwordHash,
+        phone: arg.phone,
+        role: arg.role,
+        name: arg.name,
+        profile: arg.profile,
+      });
+
+      await user.save({ session });
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+
+    switch (arg.role) {
+      case UserRole.company: {
+        // Convert possible media file input (e.g. Express.Multer.File[]) to string filenames if needed
+        let media: string[] = [];
+
+        if (Array.isArray(arg.media)) {
+          media = (arg.media as any[])
+            .map((m) => (typeof m === "string" ? m : (m.filename ?? "")))
+            .filter(Boolean);
+        }
+
+        const company = new companyModel({
+          userId: user._id,
+          media,
+        });
+
+        await company.save({ session });
+
+        const userObj: Object = user.toObject();
+        const companyObj: Object = company.toObject();
+
+        if ("_id" in companyObj) {
+          delete companyObj["_id"];
+        }
+
+        if ("userId" in companyObj) {
+          delete companyObj["userId"];
+        }
+
+        return {
+          ...userObj,
+          company: companyObj,
+        };
+      }
+      case UserRole.guard: {
+        const guard = new guardModel({
+          userId: user._id,
+          availability: arg.availability,
+          employmentType: arg.employmentType,
+          maxHoursPerWeek: arg.maxHoursPerWeek,
+        });
+
+        await guard.save({ session });
+
+        const userObj: Object = user.toObject();
+        const guardObj: Object = guard.toObject();
+
+        if ("_id" in guardObj) {
+          delete guardObj["_id"];
+        }
+
+        if ("userId" in guardObj) {
+          delete guardObj["userId"];
+        }
+
+        return {
+          ...userObj,
+          ...guardObj,
+        };
+      }
+      default:
+        return user.toObject();
+    }
+  },
+
+  async findByEmail(email: string): Promise<Object | null> {
+    const user = await userModel.findOne({ email }).lean();
+    if (!user) return null;
+
+    let profile: unknown = null;
+
+    switch (user.role) {
+      case UserRole.company:
+        profile = await companyModel.findById(user._id).lean();
+        break;
+      case UserRole.guard:
+        profile = await guardModel.findById(user._id).lean();
+        break;
+      default:
+        break;
+    }
+
+    let result: Object = Object.create(null);
+
+    return Object.assign(result, user, profile);
+  },
+};
+
+export default userRepo;

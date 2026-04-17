@@ -37,9 +37,6 @@ export const validate = (schema: ObjectSchema, types: Array<ValidationType> = ["
                 throw new AppError(`Missing request ${types}`, 400)
             }
 
-            console.log(reqElement)
-
-
             const { error, value } = schema.validate(reqElement, {
                 abortEarly: false,
                 stripUnknown: true,

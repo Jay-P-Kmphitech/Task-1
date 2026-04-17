@@ -1,8 +1,7 @@
-import { Document, Schema } from "mongoose"
+import { Document, Schema, Types } from "mongoose"
 
 export interface Guard extends Document {
-    name: String,
-    profile: String,
+    userId: Types.ObjectId,
     availability: Array<Days>,
     employmentType: EmploymentType,
     maxHoursPerWeek: Number,
@@ -25,13 +24,9 @@ export enum Days {
 
 const guardSchema = new Schema<Guard>(
     {
-        name: {
-            type: String,
-            required: true,
-        },
-        profile: {
-            type: String,
-            required: true,
+        userId: {
+            type: Schema.Types.ObjectId,
+            ref: "Users",
         },
         availability: {
             type: [String],

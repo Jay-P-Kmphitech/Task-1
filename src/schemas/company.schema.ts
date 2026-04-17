@@ -1,18 +1,14 @@
-import { Document, Schema } from "mongoose"
+import { Document, Schema, Types } from "mongoose"
 
 export interface Company extends Document {
-    name: String,
+    userId: Types.ObjectId,
     media?: Array<string>,
 }
 
 const companySchema = new Schema<Company>({
-    _id: {
+    userId: {
         type: Schema.Types.ObjectId,
         ref: "Users",
-    },
-    name: {
-        type: String,
-        required: [true, "Company name is required"]
     },
     media: [String],
 })
